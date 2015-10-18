@@ -6,6 +6,7 @@ Just a KBirthday clone for Gnome environment and working with evolution data ser
 ### Original source from:
 ## pygtk-demo Status Icon: Nikos Kouremenos
 ## EvoBdayReminder.py: Axel Heim. http://www.axelheim.de/
+## Anniversary code and other various mods: slickvguy
 
 import pygtk
 pygtk.require('2.0')
@@ -42,40 +43,46 @@ class AddressBook:
             		if not data.startswith('BEGIN:VCARD'):
                 		continue
             		self.contacts.append(Contact(data,self.bdays))
-
+	
     def manageBdays(self):
 
         now = date.today()
         bdayKeys = self.bdays.keys()
         cumplelista = []
 	temporal = []
+	iconoprefix = ''	#svg: used to choose between birthday or anniversary icons
 
         global firstday
         global lastday
         
-        for d in range(firstday,lastday+1):
-            sDate = now + datetime.timedelta(d)
+        for d in range(firstday,lastday+1):	#svg: range() assumes base 0 for the upperlimit, so we must add 1 to lastday
+            sDate = now + datetime.timedelta(d)	#svg: sDate = calc'd date for checking against each contact's birthday. current date + (# of days)
 
-            for k in range(len(self.bdays)):
+            for k in range(len(self.bdays)):	#svg: compare against all the contacts' birthdays
                 sDateDay = str(sDate.day)
-
                 if len(sDateDay) != 2: sDateDay = '0' + sDateDay
                 sDateMonth = str(sDate.month)
                 if len(sDateMonth) != 2: sDateMonth = '0' + sDateMonth
 
-                if bdayKeys[k].find('-'+sDateMonth+'-'+sDateDay) != -1:
-                    if d == 0:
-			cumpleshoy = True
-			icono = 'birthdaytoday.png'
-   		    elif d < 0:
-			icono = 'birthdaylost.png'
+                if bdayKeys[k].find('-'+sDateMonth+'-'+sDateDay) != -1:	#svg: if calc'd date matches contact's bday/ann month and day...
+                    name = self.bdays[bdayKeys[k]]
+		    if name[-1] == '*':					#svg: if the rightmost char is the anniversary flag, use those icons
+			iconoprefix = 'ann'
+			name = name[:-1]				#svg: strip the '*' flag
 		    else:
-			icono = 'birthdaynext.png'
+			iconoprefix = 'birthday'
+                    if d == 0:						#svg:   and # of days=0, then we have a birthday today
+			cumpleshoy = True
+			icono = iconoprefix + 'today.png'
+   		    elif d < 0:						#svg:	and # of days<0, then we missed a birthday
+			icono = iconoprefix + 'lost.png'
+		    else:
+			icono = iconoprefix + 'next.png'		#svg:	else, # of days>0, then we have an upcoming birthday
 
                     bday = bdayKeys[k]
-                    name = self.bdays[bdayKeys[k]]
+                    #name = self.bdays[bdayKeys[k]]
 		    ano, mes, dia = bday.split('-', 2)
-		    ano = sDate.year - int(ano)
+		    ano = sDate.year - int(ano)				#svg: calc age on birthday (current year - birthdate year)
 
 		    temporal = [icono, bday, name, str(d), d, sDate.month, sDate.day, ano]
 		    #print temporal
@@ -117,8 +124,8 @@ class Contact:
         lines = self._splitRE.split(data)
         mostRecentName = ''
 	mostRecentDate = ''
-        for line in lines:
- 
+  
+        for line in lines:	#svg: examine each line of each contact record
             if not line.strip() or line == '\x00':
                 continue
             if startswithany(line, self._ignoreFields):
@@ -128,7 +135,36 @@ class Contact:
             if label == 'X-EVOLUTION-FILE-AS': 
 		mostRecentName = value
 		mostRecentName = mostRecentName.replace("\,",",")
-            if label == 'BDAY':
+	    if label == 'BDAY':
+                mostRecentDate = value
+	    if (mostRecentName != '') & (mostRecentDate != ''):
+                if bdays.has_key(mostRecentDate):
+                	indice = 1
+                	mostRecentDateOrig = mostRecentDate
+                	while bdays.has_key(mostRecentDate):
+                		mostRecentDate = mostRecentDateOrig + "T" + str(indice)		#svg: handle duplicate dates
+                		indice = indice + 1
+                bdays[mostRecentDate] = mostRecentName
+		mostRecentName = ''
+		mostRecentDate = ''
+
+#svg: ***ANNIVERSARY***
+#svg: go through 'em all again, but look for anniversaries this time instead of birthdays...
+        lines = self._splitRE.split(data)
+        mostRecentName = ''
+	mostRecentDate = ''
+
+        for line in lines:
+            if not line.strip() or line == '\x00':
+                continue
+            if startswithany(line, self._ignoreFields):
+                continue
+            if line.find(':') == -1: continue
+            label, value = line.split(':', 1)
+            if label == 'X-EVOLUTION-FILE-AS': 
+		mostRecentName = value
+		mostRecentName = mostRecentName.replace("\,",",")
+	    if label == 'X-EVOLUTION-ANNIVERSARY':
                 mostRecentDate = value
 	    if (mostRecentName != '') & (mostRecentDate != ''):
                 if bdays.has_key(mostRecentDate):
@@ -137,7 +173,7 @@ class Contact:
                 	while bdays.has_key(mostRecentDate):
                 		mostRecentDate = mostRecentDateOrig + "T" + str(indice)
                 		indice = indice + 1
-                bdays[mostRecentDate] = mostRecentName
+		bdays[mostRecentDate] = mostRecentName + "*"	#svg: append a "*" to contact name to denote anniversary
 		mostRecentName = ''
 		mostRecentDate = ''
 
@@ -231,7 +267,7 @@ def openwindow():
 	event_box.show()
 	label = gtk.Label("GBirthday")
 	if len(lista) > 0:
-		label.set_markup('<b>' + langTxt['txt_birthday'] + '</b>')
+		label.set_markup('<b>' + langTxt['txt_birthday'] + '</b>')	#svg: window title
 	else:
 		label.set_markup('<b>\n    ' + langTxt['txt_empty'] + '    \n</b>')
 	label.set_justify(gtk.JUSTIFY_RIGHT)
@@ -242,11 +278,11 @@ def openwindow():
 	fila = fila +1
 	for cumple in lista:
 		image = gtk.Image()
-		image.set_from_file(imageslocation + cumple[0])
+		image.set_from_file(imageslocation + cumple[0])					#svg: [0]=icon to display
         	table.attach(image, 0, 1, fila, fila+1)
         	image.show()
 
-		langMonth = time.strftime('%B', (2000, int(cumple[5]), 1, 1, 0, 0, 0, 1, 0))
+		langMonth = time.strftime('%B', (2000, int(cumple[5]), 1, 1, 0, 0, 0, 1, 0))	#svg: [5]=birthday month
 		if cumple[4] == 0:
 			label = gtk.Label("<b>" + langMonth + "</b>")
 			label.set_markup("<b>" + langMonth + "</b>")
@@ -262,7 +298,7 @@ def openwindow():
         	label.show()
 
 		if cumple[4] == 0:
-			label = gtk.Label("<b>" + str(cumple[6]) + "</b>")
+			label = gtk.Label("<b>" + str(cumple[6]) + "</b>")			#svg: [6]=birthday day
 			label.set_markup("<b>" + str(cumple[6]) + "</b>")
 		elif cumple[4] < 0:
 			label = gtk.Label(str(cumple[6]))
@@ -276,7 +312,7 @@ def openwindow():
         	label.show()
 
 		if cumple[4] == 0:
-			label = gtk.Label("<b>" + cumple[2] + "</b>")
+			label = gtk.Label("<b>" + cumple[2] + "</b>")				#svg: [2]=contact file-as-name
 			label.set_markup("<b>" + cumple[2] + "</b>")
 		elif cumple[4] < 0:
 			label = gtk.Label(cumple[2])
@@ -289,19 +325,19 @@ def openwindow():
 		align.show()
         	label.show()
 
-		if cumple[4] == 0:
+		if cumple[4] == 0:							#svg: [4]=days to birthday: -x (past), 0 (today), +x (future)
 			label = gtk.Label(langTxt['txt_today'])
 			label.set_markup("<b>" + langTxt['txt_today'] + "</b>")
 		elif cumple[4] == -1:
 			label = gtk.Label(langTxt['txt_yesterday'])
 			label.set_markup("<span foreground='grey'>" + langTxt['txt_yesterday'] + "</span>")
 		elif cumple[4] < -1:
-			label = gtk.Label(langTxt['txt_daysago'].replace(u"###", str(cumple[4] * -1)))
+			label = gtk.Label(langTxt['txt_daysago'].replace(u"###", str(cumple[4] * -1)))	#svg: the *-1 turns the - into a +
 			label.set_markup("<span foreground='grey'>" + langTxt['txt_daysago'].replace(u"###", str(cumple[4] * -1)) + "</span>")
 		elif cumple[4] == 1:
 			label = gtk.Label(langTxt['txt_tomorrow'])
 		else:
-			label = gtk.Label(cumple[3] + " " + langTxt['txt_days'])
+			label = gtk.Label(cumple[3] + " " + langTxt['txt_days'])	#svg: but use the string in [3] instead of the number in [4]
 		align = gtk.Alignment(0.0, 0.5, 0, 0)
 		align.add(label)
 		align.show()
@@ -309,7 +345,7 @@ def openwindow():
         	label.show()
 
 		if cumple[4] == 0:
-			label = gtk.Label("<b>" + str(cumple[7]) + " " + langTxt['txt_years'] + "</b>")
+			label = gtk.Label("<b>" + str(cumple[7]) + " " + langTxt['txt_years'] + "</b>")		#svg: [7]=years old
 			label.set_markup("<b>" + str(cumple[7]) + " " + langTxt['txt_years'] + "</b>")
 		elif cumple[4] < 0:
 			label = gtk.Label(str(cumple[7]) + " " + langTxt['txt_years'])
@@ -350,7 +386,7 @@ def create_dialog(uno):
 	dlg.set_icon_from_file(imageslocation + 'birthday.png')
 	dlg.set_copyright(u"Copyright \u00A9 2007 Alex Mallo")
 	dlg.set_license(" Licensed under the GNU General Public License Version 2\n\n Power Manager is free software; you can redistribute it and\/or\nmodify it under the terms of the GNU General Public License\nas published by the Free Software Foundation; either version 2\nof the License, or (at your option) any later version.\n\n Power Manager is distributed in the hope that it will be useful,\nbut WITHOUT ANY WARRANTY; without even the implied warranty of\nMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\nGNU General Public License for more details.\n\n You should have received a copy of the GNU General Public License\nalong with this program; if not, write to the Free Software\nFoundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA\n02110-1301, USA.")
-	dlg.set_authors(["Alex Mallo <dernalis@gmail.com>", "Robert Wildburger <r.wildburger@gmx.at>", "Stefan Jurco <stefan.jurco@gmail.com>"])
+	dlg.set_authors(["Alex Mallo <dernalis@gmail.com>", "Robert Wildburger <r.wildburger@gmx.at>", "Stefan Jurco <stefan.jurco@gmail.com>", "slickvguy <slickvguy@yahoo.com>"])
 	dlg.set_artists(["Alex Mallo <dernalis@gmail.com>"])
 	dlg.set_translator_credits("English: Robert Wildburger <r.wildburger@gmx.at>\nFrench: Alex Mallo <dernalis@gmail.com>\nGerman: Robert Wildburger <r.wildburger@gmx.at>\nGalician: Alex Mallo <dernalis@gmail.com>\nItalian: Alex Mallo <dernalis@gmail.com>\nPortuguese: Alex Mallo <dernalis@gmail.com>\nSlovak: Stefan Jurco <stefan.jurco@gmail.com>\nSpanish: Alex Mallo <dernalis@gmail.com>")
 	dlg.set_website("http://gbirthday.sf.net/")
@@ -364,8 +400,8 @@ def preferences_window(textocw):
 	global imageslocation
 	global preferences
 	preferences = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        preferences.set_decorated(True)
-	preferences.set_position(gtk.WIN_POS_CENTER)
+        preferences.set_decorated(False)	#svg: changed to False to prevent window closing via titlebar 
+	preferences.set_position(gtk.WIN_POS_CENTER) #svg: because the changed spinner values would update the variables but NOT the file!
 	preferences.set_title(langTxt['menu_preferences'])
 	preferences.set_icon_from_file(imageslocation + 'birthday.png')
 
@@ -384,13 +420,13 @@ def preferences_window(textocw):
 	table.attach(label, 0, 1, 1, 2)
 	label.show()
 	
-	past = gtk.Adjustment(firstday, lower=-30, upper=0, step_incr=-1, page_incr=0, page_size=0)
+	past = gtk.Adjustment(firstday, lower=-30, upper=0, step_incr=-1, page_incr=0, page_size=0) #svg: firstday from -30 to 0
 	spin = gtk.SpinButton(past, climb_rate=0.0, digits=0)
 	spin.connect("value-changed", cambiar_preferencias,"firstday", spin)
 	table.attach(spin,1, 2, 0, 1)
 	spin.show()
 
-	next = gtk.Adjustment(lastday, lower=0, upper=90, step_incr=1, page_incr=0, page_size=0)
+	next = gtk.Adjustment(lastday, lower=0, upper=360, step_incr=1, page_incr=0, page_size=0)    #svg: lastday from 0 to 360
 	spin = gtk.SpinButton(next, climb_rate=0.0, digits=0)
 	spin.connect("value-changed", cambiar_preferencias,"lastday", spin)
 	table.attach(spin,1, 2, 1, 2)
@@ -412,18 +448,17 @@ def cambiar_preferencias(uno, opcion, spin):
 	global lastday
 	spin.update()
 	if opcion == "firstday": firstday = spin.get_value_as_int()
-	elif opcion == "lastday": lastday = spin.get_value_as_int()
-	else: print "Valor no indicado"
+	if opcion == "lastday": lastday = spin.get_value_as_int()
 
-def cerrar_gbirthday(texto):
+def cerrar_gbirthday(texto):	#svg: close gbirthday
 	if dlg != None:
 		dlg.destroy()
 	gtk.main_quit()
 
-def cerrar_about(uno,texto):
+def cerrar_about(uno,texto):	#svg: close about
     about.destroy()
 
-def cerrar_preferences(uno,texto):
+def cerrar_preferences(uno,texto):	#close preferences window (gets here via save/close button only - not titlebar close)
 	global firstday
 	global lastday
 	f = open(os.environ['HOME']+"/.gbirthday.conf",'w')
@@ -431,13 +466,18 @@ def cerrar_preferences(uno,texto):
 	f.write("lastday="+str(lastday) + "\n")
 	f.close()
 	preferences.destroy()
+	recargar_gbirthday("reload") #svg: small bug fixed. if we change the range we must also reset the status icon in case it should be different now
 
-def recargar_gbirthday(texto):
+def recargar_gbirthday(texto):	#svg: reload
 	global AB
 	global icon
+	global firstday
 	AB = AddressBook(0)
 	icon.set_blinking(AddressBook.checktoday(AB))
+	tempfirstday = firstday		#svg: save firstday and temporarily set it to 0, so that for icon purposes,
+	firstday = 0			#svg:  we only get a list returned of events from today forward.
 	lista=AddressBook.manageBdays(AB)
+	firstday = tempfirstday		#svg: restore firstday
 	if len(lista) > 0:
 		icon.set_from_file(imageslocation + 'birthday.png')
 	else:
@@ -447,22 +487,31 @@ def stop_blinking(texto):
 	global icon
 	icon.set_blinking(False)
     
-def StatusIcon(parent=None):
+def StatusIcon(parent=None):	#svg: Set the status icon: illuminated if birthday within range, gray if no birthday, blinking if birthday today
 	global icon
+	global firstday
 	icon = gtk.status_icon_new_from_file(imageslocation + 'birthday.png')
+	tempfirstday = firstday		#svg: save firstday and temporarily set it to 0, so that for icon purposes,
+	firstday = 0			#svg:  we only get a list returned of events from today forward.
 	lista=AddressBook.manageBdays(AB)
-	if len(lista) > 0:
+	firstday = tempfirstday		#svg: restore firstday
+	if len(lista) > 0:				#svg: if there are any events from TODAY forward, display the illuminated taskbar icon
 		icon.set_from_file(imageslocation + 'birthday.png')
 	else:
-		icon.set_from_file(imageslocation + 'nobirthday.png')
-	icon.set_blinking(AddressBook.checktoday(AB))
-	icon.connect('popup-menu', on_right_click)
-	icon.connect('activate', on_left_click, 20, 20)
-def check_new_day():
+		icon.set_from_file(imageslocation + 'nobirthday.png')	#svg: else display the gray taskbar icon
+	icon.set_blinking(AddressBook.checktoday(AB))	#svg: make icon blink if there's a birthday TODAY
+	icon.connect('popup-menu', on_right_click)	#svg: right-clck on icon displays the menu
+	icon.connect('activate', on_left_click, 20, 20) #svg: left-click on icon displays the birthdays box
+
+def check_new_day():		#svg: If we've crossed into the next day, refresh the birthday list and update the status icon
 	global dia
+	global firstday
 	diahoy = time.strftime("%d", time.localtime(time.time()))
 	if dia != diahoy:
+		tempfirstday = firstday		#svg: save firstday and temporarily set it to 0, so that for icon purposes,
+		firstday = 0			#svg:  we only get a list returned of events from today forward.
 		lista=AddressBook.manageBdays(AB)
+		firstday = tempfirstday		#svg: restore firstday
 		if len(lista) > 0:
 			icon.set_from_file(imageslocation + 'birthday.png')
 		else:
@@ -502,7 +551,7 @@ if __name__ == '__main__':
 			label, value = line.split('=', 1)
 			if label == "firstday": firstday = int(value)
 			elif label == "lastday": lastday = int(value)
-			else: print "Unhandled vale in gbirthday.conf: " + line
+			else: print "Unhandled value in gbirthday.conf: " + line
     	f.close()
     try:
     	langFile = open(languageslocation + defaultLocale  + ".lang",'r')
@@ -520,8 +569,9 @@ if __name__ == '__main__':
     	if langLine.startswith(u"#",0,1) == False:
     		langLabel, langValue = langLine.split('=',1)
     		langTxt[langLabel] = str(langValue)
+    langFile.close()	#svg: added this statement - seems to have been forgotten
     AB = AddressBook(0)
-    icono = StatusIcon()
-    dia = time.strftime("%d", time.localtime(time.time()))
-    gobject.timeout_add(60000, check_new_day)
+    icono = StatusIcon() #svg: set the status icon
+    dia = time.strftime("%d", time.localtime(time.time())) #svg: get current date
+    gobject.timeout_add(60000, check_new_day)	#svg: check for a new day every 60000 milliseconds, i.e. every minute
     gtk.main()
