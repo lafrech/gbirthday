@@ -29,7 +29,7 @@ and relatively easy to extend for other data servers.
 
 VERSION = "@VER@"
 
-from PyQt4 import QtCore, QtGui, uic
+from PyQt5 import QtCore, QtWidgets, uic
 
 import os
 import sys
@@ -72,6 +72,9 @@ def load_ui(ui_file, widget=None):
     return uic.loadUi(os.path.join(UI_FILES_LOCATION, ui_file), widget)
 
 def main():
+    # TODO: move this out of main()
+    # http://pyqt.sourceforge.net/Docs/PyQt5/pyqt4_differences.html
+    
     '''Load settings, start status icon and get to work.'''
     from .mainwindow import MainWindow
 
@@ -79,12 +82,12 @@ def main():
     QtCore.QCoreApplication.setOrganizationName("GBirthday");
     QtCore.QCoreApplication.setApplicationName("gbirthday");
 
-    app = QtGui.QApplication([])
+    app = QtWidgets.QApplication([])
     # TODO: is this the right way?
     app.setQuitOnLastWindowClosed(False)
     
     # Main window
-    main_window = MainWindow()
+    main_window = MainWindow(app)
 
     sys.exit(app.exec_())
 

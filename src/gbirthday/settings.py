@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 #}}}
-from PyQt4 import QtCore
+from PyQt5 import QtCore
 
 from .databases import DATABASES
 

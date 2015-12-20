@@ -15,7 +15,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 #}}}
 
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 import datetime
 
@@ -31,11 +31,11 @@ class Birthday(QtCore.QObject):
 
         super().__init__()
 
-        self.label_image = QtGui.QLabel()
-        self.label_day = QtGui.QLabel(str(birthdate.day))
-        self.label_month = QtGui.QLabel(_(birthdate.strftime('%B')))
-        self.label_name = QtGui.QLabel(name)
-        self.label_age = QtGui.QLabel(_('{} Years').format(
+        self.label_image = QtWidgets.QLabel()
+        self.label_day = QtWidgets.QLabel(str(birthdate.day))
+        self.label_month = QtWidgets.QLabel(_(birthdate.strftime('%B')))
+        self.label_name = QtWidgets.QLabel(name)
+        self.label_age = QtWidgets.QLabel(_('{} Years').format(
             datetime.date.today().year - birthdate.year))
 
         self.label_day.setAlignment(QtCore.Qt.AlignRight |
@@ -47,7 +47,7 @@ class Birthday(QtCore.QObject):
             self.label_image.setPixmap(
                 QtGui.QPixmap(PICS_PATHS['birthdaytoday']))
             
-            self.label_when = QtGui.QLabel(_('Today'))
+            self.label_when = QtWidgets.QLabel(_('Today'))
         
         # Birthday in the past
         elif delta_day < 0:
@@ -56,10 +56,10 @@ class Birthday(QtCore.QObject):
                 QtGui.QPixmap(PICS_PATHS['birthdaylost']))
             
             if delta_day == -1:
-                self.label_when = QtGui.QLabel(_('Yesterday'))
+                self.label_when = QtWidgets.QLabel(_('Yesterday'))
             else:
                 ago = (_('%s Days ago') % str(delta_day * -1))
-                self.label_when = QtGui.QLabel(ago)
+                self.label_when = QtWidgets.QLabel(ago)
 
             for label in [self.label_day, self.label_month, self.label_name, 
                           self.label_age, self.label_when]:
@@ -72,15 +72,18 @@ class Birthday(QtCore.QObject):
                 QtGui.QPixmap(PICS_PATHS['birthdaynext']))
 
             if delta_day == 1:
-                self.label_when = QtGui.QLabel(_('Tomorrow'))
+                self.label_when = QtWidgets.QLabel(_('Tomorrow'))
             else:
-                self.label_when = QtGui.QLabel(_('%s Days') % delta_day)
+                self.label_when = QtWidgets.QLabel(_('%s Days') % delta_day)
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self):
+    def __init__(self, app):
         
         super().__init__()
+        
+        # Keep reference to application
+        self.app = app
         
         self.setWindowFlags(QtCore.Qt.Tool |
                             QtCore.Qt.FramelessWindowHint |
